@@ -138,6 +138,39 @@
             border-radius: 3px;
             box-shadow: 0 1px 3px rgba(0,0,0,0.05);
         }
+
+        @media (max-width: 768px) {
+            body {
+                height: auto;
+                padding: 20px 0;
+            }
+            .main-wrapper {
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+            }
+            .container {
+                width: 90%;
+                padding: 20px;
+            }
+            .sidebar {
+                width: 90%;
+                height: auto;
+                max-height: 50vh;
+            }
+            h1 {
+                font-size: 1.8em;
+            }
+            .countdown-timer {
+                font-size: 3em;
+            }
+            .numero-sorteado {
+                font-size: 3.5em;
+            }
+            .nome-vencedor {
+                font-size: 1.3em;
+            }
+        }
     </style>
     <!-- Biblioteca de confetes -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
