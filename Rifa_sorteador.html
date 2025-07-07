@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rifa Solidária da Maria Alice</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #89f7fe 0%, #66a6ff 100%);
+            color: #333;
+            overflow: hidden;
+        }
+        .main-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+        }
+        .container {
+            text-align: center;
+            background-color: rgba(255, 255, 255, 0.9);
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            width: 90%;
+            max-width: 450px;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+        .sidebar {
+            width: 250px;
+            background-color: rgba(255, 255, 255, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            height: 80vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .sidebar h3 {
+            color: #1c1e21;
+            margin-top: 0;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        h1 {
+            color: #1c1e21;
+            margin-bottom: 20px;
+        }
+        p {
+            color: #606770;
+            margin-bottom: 25px;
+        }
+        #sortearBtn {
+            background-color: #66a6ff;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s ease, opacity 0.3s ease, transform 0.2s ease;
+        }
+        #sortearBtn:hover {
+            background-color: #5091e8;
+            transform: translateY(-2px);
+        }
+        #sortearBtn:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
+        #resultado {
+            margin-top: 30px;
+            min-height: 120px;
+        }
+        .countdown-timer {
+            font-size: 3.5em;
+            font-weight: bold;
+            color: #1c1e21;
+        }
+        .numero-sorteado {
+            font-size: 4em;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .nome-vencedor {
+            font-size: 1.5em;
+            color: #1c1e21;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        .upload-section {
+            margin-bottom: 30px;
+            border: 2px dashed #66a6ff;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        #csvFileInput {
+            display: none;
+        }
+        .upload-label {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: background-color 0.3s ease;
+        }
+        .upload-label:hover {
+            background-color: #dee2e6;
+        }
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        .participantes-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            text-align: left;
+        }
+        .participante-item {
+            background-color: #fff;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 3px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+    </style>
+    <!-- Biblioteca de confetes -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+</head>
+<body>
+
+    <div class="main-wrapper">
+        <div class="container">
+            <h1>Rifa Solidária da Maria Alice</h1>
+
+            <div class="upload-section">
+                <p>Primeiro, carregue sua planilha de participantes em formato <strong>.CSV</strong>.</p>
+                <label for="csvFileInput" class="upload-label">Carregar Planilha</label>
+                <input type="file" id="csvFileInput" accept=".csv">
+                <div id="status"></div>
+            </div>
+
+            <p>Depois, clique para sortear o número vencedor!</p>
+            <button id="sortearBtn" disabled>Sortear Número</button>
+            <div id="resultado" aria-live="polite"></div>
+        </div>
+
+        <div id="sidebar" class="sidebar" style="display: none;">
+            <h3>Compradores da Rifa:</h3>
+            <div id="participantes-lista" class="participantes-container"></div>
+        </div>
+    </div>
+
+    <script>
+        const csvFileInput = document.getElementById('csvFileInput');
+        const sortearBtn = document.getElementById('sortearBtn');
+        const resultadoDiv = document.getElementById('resultado');
+        const statusDiv = document.getElementById('status');
+        const participantesListaDiv = document.getElementById('participantes-lista');
+        const sidebar = document.getElementById('sidebar');
+
+        const rifaData = new Map();
+
+        csvFileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                rifaData.clear();
+                participantesListaDiv.innerHTML = '';
+                sidebar.style.display = 'none';
+
+
+                const lines = text.split(/\r\n|\n/).filter(line => line.trim() !== '');
+
+                for (const line of lines) {
+                    const parts = line.split(';');
+                    if (parts.length < 2) continue;
+
+                    const nome = parts[0].trim().replace(/^"|"$/g, '');
+                    const numerosStr = parts[1].trim();
+                    const numeros = numerosStr.split(',');
+
+                    for (const numeroStr of numeros) {
+                        const numero = parseInt(numeroStr.trim(), 10);
+                        if (nome && !isNaN(numero)) {
+                            rifaData.set(numero, nome);
+                        }
+                    }
+                }
+
+                if (rifaData.size > 0) {
+                    statusDiv.textContent = `✅ ${rifaData.size} números carregados!`;
+                    statusDiv.style.color = 'green';
+                    sortearBtn.disabled = false;
+
+                    const nomes = [...new Set(rifaData.values())].sort();
+
+                    if (nomes.length > 0) {
+                        nomes.forEach(nome => {
+                            const participanteElement = document.createElement('div');
+                            participanteElement.className = 'participante-item';
+                            participanteElement.textContent = nome;
+                            participantesListaDiv.appendChild(participanteElement);
+                        });
+                        sidebar.style.display = 'flex';
+                    }
+                } else {
+                    statusDiv.textContent = '❌ Nenhum dado válido encontrado na planilha.';
+                    statusDiv.style.color = 'red';
+                    sortearBtn.disabled = true;
+                }
+            };
+
+            reader.onerror = () => {
+                statusDiv.textContent = '❌ Erro ao ler o arquivo.';
+                statusDiv.style.color = 'red';
+                sortearBtn.disabled = true;
+            };
+
+            reader.readAsText(file, 'UTF-8');
+        });
+
+        function triggerConfetti() {
+            confetti({
+                particleCount: 150,
+                spread: 90,
+                origin: { y: 0.6 }
+            });
+        }
+
+        sortearBtn.addEventListener('click', () => {
+            sortearBtn.disabled = true;
+            csvFileInput.disabled = true;
+
+            let countdown = 10;
+            resultadoDiv.innerHTML = `<div class="countdown-timer">${countdown}</div>`;
+
+            const countdownInterval = setInterval(() => {
+                countdown--;
+                resultadoDiv.innerHTML = `<div class="countdown-timer">${countdown}</div>`;
+
+                if (countdown <= 0) {
+                    clearInterval(countdownInterval);
+
+                    const numeroSorteado = Math.floor(Math.random() * 100) + 1;
+                    const nomeVencedor = rifaData.get(numeroSorteado);
+
+                    let resultadoHTML = `<div class="numero-sorteado">${numeroSorteado}</div>`;
+
+                    if (nomeVencedor) {
+                        resultadoHTML += `<div class="nome-vencedor">Parabéns, ${nomeVencedor}!</div>`;
+                        triggerConfetti(); // Aciona os confetes!
+                    } else {
+                        resultadoHTML += `<div class="nome-vencedor">(Número não vendido)</div>`;
+                    }
+
+                    resultadoDiv.innerHTML = resultadoHTML;
+
+                    sortearBtn.disabled = false;
+                    csvFileInput.disabled = false;
+                }
+            }, 1000);
+        });
+    </script>
+
+</body>
+</html>
